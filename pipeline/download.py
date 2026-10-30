@@ -1,4 +1,4 @@
-"""Download the Abel & Cohen bilateral migration flow files (v8) and verify them."""
+"""Download the source files (Abel & Cohen flows v8, Natural Earth v5.1.2) and verify them."""
 
 import hashlib
 import sys
@@ -7,6 +7,7 @@ from pathlib import Path
 import requests
 
 DATA_DIR = Path(__file__).parent / "data"
+NATURAL_EARTH = "https://raw.githubusercontent.com/nvkelso/natural-earth-vector/v5.1.2/geojson"
 
 FILES = {
     "bilat_mig.csv": {
@@ -16,6 +17,16 @@ FILES = {
     "country_list.csv": {
         "url": "https://ndownloader.figshare.com/files/53236088",
         "md5": None,  # not published
+    },
+    # Natural Earth, pinned to a release tag; used for country label points (lat/lon)
+    "ne_10m_admin_0_countries.geojson": {
+        "url": f"{NATURAL_EARTH}/ne_10m_admin_0_countries.geojson",
+        "md5": "33d2b3758f0b60dc3600961df4fff2ff",
+    },
+    # Splits off overseas territories (e.g. Réunion, Guadeloupe) that the countries file merges
+    "ne_10m_admin_0_map_units.geojson": {
+        "url": f"{NATURAL_EARTH}/ne_10m_admin_0_map_units.geojson",
+        "md5": "2664b923a2e3d39943069a1b5a02dc7d",
     },
 }
 
