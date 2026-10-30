@@ -18,7 +18,8 @@ import { loopFade, PERIODS, periodOf, periodWeights, START_YEAR, wrapYear } from
 import { TimeRing } from './TimeRing'
 import './App.css'
 
-const IS_MOBILE = window.matchMedia('(pointer: coarse)').matches || window.innerWidth < 768
+// Phones only (same breakpoint as App.css); tablets get the desktop experience
+const IS_MOBILE = window.matchMedia('(max-width: 600px)').matches
 const STREAM_SETTINGS = IS_MOBILE ? { maxFlows: 250, maxParticles: 6 } : { maxFlows: 800, maxParticles: 10 }
 const MIN_FLOW = 1000 // people per 5 years; smaller flows aren't fetched at all
 const SECONDS_PER_YEAR = 1.5
@@ -355,11 +356,8 @@ export default function App() {
       {error && <div className="status error">Could not load data: {error}</div>}
       {!error && flows.length === 0 && <div className="status">Loading flows…</div>}
 
+      {/* Also holds the data credits (CC BY 4.0) */}
       <AboutDialog />
-
-      <footer className="credits">
-        Data: Abel &amp; Cohen (2025) bilateral migration flows v8, CC BY 4.0 · Map: Natural Earth
-      </footer>
     </div>
   )
 }

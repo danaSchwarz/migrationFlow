@@ -259,27 +259,61 @@
   color: var(--text);
 }
 
-.credits {
-  position: absolute;
-  left: 8px;
-  bottom: 4px;
-  font-size: 10px;
-  color: var(--muted);
-  opacity: 0.7;
-  pointer-events: none;
-}
-
-/* Phones: details as a bottom sheet above the controls */
+/* Phones: details centered above the controls, same width; book button top right */
 @media (max-width: 600px) {
-  .panel {
-    top: auto;
-    right: 12px;
-    bottom: 100px;
-    max-height: 45%;
+  .app {
+    --bar-width: 252px; /* 5 buttons × 44px + gaps + padding + border */
   }
 
-  .credits {
-    right: 8px;
-    text-align: center;
+  .panel {
+    top: auto;
+    right: auto;
+    left: 50%;
+    transform: translateX(-50%);
+    bottom: 60px;
+    width: var(--bar-width);
+    max-height: 30%;
+    padding: 10px 12px;
+  }
+
+  .about-button {
+    top: max(12px, env(safe-area-inset-top));
+    bottom: auto;
+  }
+
+  .panel h2 {
+    font-size: 15px;
+  }
+
+  .panel h3 {
+    margin: 8px 0 2px;
+    font-size: 12px;
+  }
+
+  .panel li {
+    padding: 1px 0;
+    font-size: 12px;
+  }
+
+  .panel .muted {
+    font-size: 11px;
+  }
+
+  .panel .icon-button {
+    min-width: 32px;
+    height: 32px;
+  }
+
+  /* Same width, less height, close to the bottom edge */
+  .controls {
+    bottom: max(8px, env(safe-area-inset-bottom));
+    width: var(--bar-width);
+    justify-content: space-between;
+    padding: 3px;
+  }
+
+  .controls .icon-button,
+  .controls .speed {
+    height: 34px;
   }
 }
