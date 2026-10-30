@@ -12,6 +12,7 @@ import worldTopology from 'world-atlas/countries-110m.json'
 import { fetchCountries, fetchFlows, type Country, type Flow } from './api'
 import { AboutDialog } from './AboutDialog'
 import { CountryPanel } from './CountryPanel'
+import { ScrollToDetails } from './ScrollToDetails'
 import { unwrapLongitudes, type LonLat } from './geo'
 import { buildParticles, CYCLE_MS, TRAIL_MS, type Particle } from './streams'
 import { loopFade, PERIODS, periodOf, periodWeights, START_YEAR, wrapYear } from './time'
@@ -20,6 +21,7 @@ import './App.css'
 
 // Phones only (same breakpoint as App.css); tablets get the desktop experience
 const IS_MOBILE = window.matchMedia('(max-width: 600px)').matches
+const MOBILE_HEADER = 72 // px above the globe on phones, for the year (must match --header in App.css)
 const STREAM_SETTINGS = IS_MOBILE ? { maxFlows: 250, maxParticles: 6 } : { maxFlows: 800, maxParticles: 10 }
 const MIN_FLOW = 1000 // people per 5 years; smaller flows aren't fetched at all
 const SECONDS_PER_YEAR = 1.5
@@ -227,6 +229,8 @@ export default function App() {
   const radius = ringRadius(width, height)
   // On phones the globe canvas is a square around the ring, so the strips above and below it can scroll the page
   const canvasHeight = IS_MOBILE ? Math.min(width, height) : height
+  // Phones: globe right under the year. Desktop: centered on the screen.
+  const centerY = IS_MOBILE ? MOBILE_HEADER + canvasHeight / 2 : height / 2
   const hasSize = width > 0 && height > 0
   const initialViewState = useMemo(
     () => ({ longitude: 15, latitude: 20, zoom: fittingZoom(radius - 10, canvasHeight, 20), minZoom: -1, maxZoom: 6 }),
@@ -330,7 +334,7 @@ export default function App() {
         <TimeRing
           year={year}
           centerX={width / 2}
-          centerY={height / 2}
+          centerY={centerY}
           radius={radius}
           onScrubStart={onScrubStart}
           onScrub={onScrub}
@@ -365,6 +369,8 @@ export default function App() {
       {selected && (
         <CountryPanel country={selected} period={period} flows={flows} names={names} onClose={() => setSelected(null)} />
       )}
+      {/* Rendered after the panel, so the panel exists when it starts watching */}
+      {selected && IS_MOBILE && <ScrollToDetails />}
     </div>
   )
 }

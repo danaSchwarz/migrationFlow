@@ -280,21 +280,36 @@
     --bar-height: 42px; /* 34px buttons + padding + border */
     /* Close to the edge; on iPhones just above the home indicator line, not the whole safe area */
     --bar-bottom: max(8px, calc(env(safe-area-inset-bottom) - 14px));
+    --header: 72px; /* room for the year above the globe (must match MOBILE_HEADER in App.tsx) */
+    --globe-size: min(100vw, 100dvh);
   }
 
+  /* Year on top, globe right below it, country details right below that */
   .stage {
     position: relative;
-    height: 100vh;
-    height: 100dvh; /* visible height, without the browser's address bar */
+    height: calc(var(--header) + var(--globe-size));
     touch-action: pan-y; /* swipe up/down here scrolls the page; the globe canvas blocks it itself */
+  }
+
+  /* Arrow above the speed bar that scrolls down to the country details */
+  .scroll-to-details {
+    position: fixed;
+    z-index: 1;
+    left: 50%;
+    bottom: calc(var(--bar-bottom) + var(--bar-height) + 10px);
+    transform: translateX(-50%);
+    display: grid;
+    place-items: center;
+    color: var(--bg);
+    background: var(--accent);
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.4);
   }
 
   /* Square around the ring (must match canvasHeight in App.tsx) */
   .globe {
     inset: auto 0;
-    top: 50%;
-    height: min(100vw, 100dvh);
-    transform: translateY(-50%);
+    top: var(--header);
+    height: var(--globe-size);
   }
 
   .panel {
@@ -305,7 +320,8 @@
     max-height: none;
     overflow: visible;
     /* Room at the end so the fixed bar never covers the last rows */
-    margin: 12px auto calc(var(--bar-bottom) + var(--bar-height) + 16px);
+    margin: 4px auto calc(var(--bar-bottom) + var(--bar-height) + 16px);
+    scroll-margin-bottom: calc(var(--bar-bottom) + var(--bar-height) + 16px);
     padding: 10px 12px;
   }
 
