@@ -6,6 +6,7 @@
   --surface: rgba(16, 24, 40, 0.88);
   --border: rgba(140, 160, 190, 0.25);
 
+  color-scheme: dark; /* dark scrollbars and form controls */
   font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   color: var(--text);
   background: var(--bg);

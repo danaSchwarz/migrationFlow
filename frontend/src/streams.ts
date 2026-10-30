@@ -26,12 +26,12 @@ function jitter([lon, lat]: LonLat): LonLat {
 /**
  * Turns one period's flows into particles. Particle count grows with the square root of the
  * flow, so big corridors stand out without hiding everything else.
- * `globalMax` is the largest flow across all periods, so periods stay comparable.
+ * `maxValue` is the largest flow across all periods, so periods stay comparable.
  */
 export function buildParticles(
   flows: Flow[],
   coordinates: Map<string, LonLat>,
-  globalMax: number,
+  maxValue: number,
   settings: StreamSettings,
 ): Particle[] {
   const particles: Particle[] = []
@@ -42,7 +42,7 @@ export function buildParticles(
     const to = coordinates.get(flow.dest)
     if (!from || !to) continue
 
-    const count = Math.max(1, Math.round(settings.maxParticles * Math.sqrt(flow.value / globalMax)))
+    const count = Math.max(1, Math.round(settings.maxParticles * Math.sqrt(flow.value / maxValue)))
     const travel = MIN_TRAVEL_MS + (MAX_TRAVEL_MS - MIN_TRAVEL_MS) * (angularDistance(from, to) / Math.PI)
 
     for (let i = 0; i < count; i++) {

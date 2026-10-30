@@ -82,7 +82,7 @@ export function TimeRing({ year, centerX: cx, centerY: cy, radius: r, onScrubSta
       {/* The seam where the loop ends and starts again */}
       <line className="seam" x1={cx} y1={cy - r - 14} x2={cx} y2={cy - r + 14} />
       <text className="tick-label seam-label" x={cx} y={cy - r - 26}>
-        2020 | 1990
+        1990 | 2020
       </text>
 
       {/* Wide invisible stroke: the touch target for scrubbing */}

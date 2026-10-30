@@ -5,10 +5,12 @@ import { GeoJsonLayer, ScatterplotLayer, SolidPolygonLayer } from '@deck.gl/laye
 import { TripsLayer } from '@deck.gl/geo-layers'
 import { geoContains, geoDistance } from 'd3-geo'
 import { feature } from 'topojson-client'
+import type { Polygon } from 'geojson'
 import type { GeometryCollection, Topology } from 'topojson-specification'
 import worldTopology from 'world-atlas/countries-110m.json'
 
 import { fetchCountries, fetchFlows, type Country, type Flow } from './api'
+import { AboutDialog } from './AboutDialog'
 import { CountryPanel } from './CountryPanel'
 import { unwrapLongitudes, type LonLat } from './geo'
 import { buildParticles, CYCLE_MS, TRAIL_MS, type Particle } from './streams'
@@ -21,6 +23,9 @@ const STREAM_SETTINGS = IS_MOBILE ? { maxFlows: 250, maxParticles: 6 } : { maxFl
 const MIN_FLOW = 1000 // people per 5 years; smaller flows aren't fetched at all
 const SECONDS_PER_YEAR = 1.5
 const SPEEDS = [0.5, 1, 2, 4]
+// Serbia and Montenegro, Sudan incl. South Sudan: same spot as Serbia and Sudan, not small
+const HISTORIC = new Set(['SCG', 'SUD'])
+const RING_ZOOM = 4 // tiny countries get their ring only when zoomed in this far
 
 const STREAM_COLOR: [number, number, number] = [255, 186, 90]
 const VIEW = new GlobeView({ resolution: 5 })
@@ -31,7 +36,7 @@ const OCEAN = Array.from({ length: (360 / OCEAN_CELL) * (180 / OCEAN_CELL) }, (_
   const lat = -90 + Math.floor(i / (360 / OCEAN_CELL)) * OCEAN_CELL
   return [[lon, lat], [lon + OCEAN_CELL, lat], [lon + OCEAN_CELL, lat + OCEAN_CELL], [lon, lat + OCEAN_CELL]]
 })
-const topology = worldTopology as unknown as Topology<{ countries: GeometryCollection }>
+const topology = worldTopology as unknown as Topology<{ countries: GeometryCollection<{ name: string }> }>
 const LAND = feature(topology, topology.objects.countries)
 for (const country of LAND.features) {
   const { geometry } = country
@@ -39,6 +44,47 @@ for (const country of LAND.features) {
   polygons.forEach((rings) => rings.forEach(unwrapLongitudes))
 }
 type LandShape = (typeof LAND.features)[number]
+
+/**
+ * The map shapes have no ISO3 codes, so link them through our label points, which always lie
+ * inside their country. One shape can hold several points: Italy's holds San Marino,
+ * France's holds Monaco and French Guiana. The shape's owner is the country with the same name.
+ */
+interface ShapeCountries {
+  owner: Country | null
+  all: Country[]
+  parts: { polygon: Polygon; countries: Country[] }[] // islands, exclaves, overseas pieces
+}
+
+function matchShape(shape: LandShape, countries: Country[]): ShapeCountries {
+  const { geometry } = shape
+  const polygons: Polygon[] =
+    geometry.type === 'Polygon'
+      ? [geometry]
+      : geometry.type === 'MultiPolygon'
+        ? geometry.coordinates.map((coordinates) => ({ type: 'Polygon', coordinates }))
+        : []
+  const all = countries.filter((c) => geoContains(shape, [c.lon, c.lat]))
+  const name = shape.properties?.name
+  const owner =
+    all.find((c) => c.name === name) ??
+    // The coarse map can miss a label point (New Zealand's lies just outside its outline)
+    countries.find((c) => c.name === name) ??
+    (all.length === 1 ? all[0] : null)
+  const parts = polygons.map((polygon) => ({
+    polygon,
+    countries: all.filter((c) => geoContains(polygon, [c.lon, c.lat])),
+  }))
+  return { owner, all, parts }
+}
+
+/** Tapped piece holds the owner (or nothing, like Sardinia) -> owner; else the nearest point in that piece. */
+function countryAt(shape: ShapeCountries, tap: LonLat): Country | null {
+  const part = shape.parts.find((p) => geoContains(p.polygon, tap))
+  const inPart = part?.countries ?? []
+  if (shape.owner && (inPart.length === 0 || inPart.includes(shape.owner))) return shape.owner
+  return nearest(inPart.length > 0 ? inPart : shape.all, tap)
+}
 
 function nearest(countries: Country[], [lon, lat]: LonLat): Country | null {
   let best: Country | null = null
@@ -127,40 +173,55 @@ export default function App() {
 
   const names = useMemo(() => new Map(countries.map((c) => [c.iso3, c.name])), [countries])
 
-  // The map shapes have no ISO3 codes. Link them through our label points, which always lie
-  // inside their country. A shape can hold several (France's includes French Guiana).
   const countriesByShape = useMemo(
-    () => new Map<LandShape, Country[]>(LAND.features.map((shape) => [shape, countries.filter((c) => geoContains(shape, [c.lon, c.lat]))])),
+    () => new Map(LAND.features.map((shape) => [shape, matchShape(shape, countries)])),
     [countries],
   )
 
-  function handleClick(info: PickingInfo) {
-    if (info.layer?.id === 'countries') {
-      setSelected(info.object as Country)
-    } else if (info.layer?.id === 'land' && info.coordinate) {
-      const candidates = countriesByShape.get(info.object as LandShape) ?? []
-      setSelected(nearest(candidates, [info.coordinate[0], info.coordinate[1]]))
-    } else {
-      setSelected(null)
+  // Countries you can't select by tapping the map (microstates, small islands):
+  // when zoomed in, they get a tappable ring instead
+  const tinyCountries = useMemo(() => {
+    const reachable = new Set<string>()
+    for (const shape of countriesByShape.values()) {
+      if (shape.owner) reachable.add(shape.owner.iso3)
+      for (const c of shape.all) {
+        if (countryAt(shape, [c.lon, c.lat]) === c) reachable.add(c.iso3)
+      }
     }
+    return countries.filter((c) => !reachable.has(c.iso3) && !HISTORIC.has(c.iso3))
+  }, [countries, countriesByShape])
+  const [zoomedIn, setZoomedIn] = useState(false)
+
+  function handleClick(info: PickingInfo) {
+    let clicked: Country | null = null
+    if (info.layer?.id === 'tiny-countries') {
+      clicked = info.object as Country
+    } else if (info.layer?.id === 'land' && info.coordinate) {
+      const shape = countriesByShape.get(info.object as LandShape)
+      clicked = shape ? countryAt(shape, [info.coordinate[0], info.coordinate[1]]) : null
+    }
+    // Clicking the selected country again unselects it
+    setSelected(clicked?.iso3 === selected?.iso3 ? null : clicked)
   }
 
-  // Built once per data load: one particle set per 5-year period
+  // One particle set per 5-year period. With a country selected, only its own flows are drawn
+  // (all of them, not just the world's biggest), scaled to that country's largest flow.
   const particlesByPeriod = useMemo(() => {
     const coordinates = new Map<string, LonLat>(countries.map((c) => [c.iso3, [c.lon, c.lat]]))
-    const globalMax = Math.max(1, ...flows.map((f) => f.value))
+    const shown = selected ? flows.filter((f) => f.orig === selected.iso3 || f.dest === selected.iso3) : flows
+    const max = shown.reduce((m, f) => Math.max(m, f.value), 1)
     return new Map<number, Particle[]>(
       PERIODS.map((p) => [
         p,
         buildParticles(
-          flows.filter((f) => f.year0 === p),
+          shown.filter((f) => f.year0 === p),
           coordinates,
-          globalMax,
+          max,
           STREAM_SETTINGS,
         ),
       ]),
     )
-  }, [countries, flows])
+  }, [countries, flows, selected])
 
   const radius = ringRadius(width, height)
   const hasSize = width > 0 && height > 0
@@ -188,7 +249,8 @@ export default function App() {
       filled: true,
       stroked: true,
       getFillColor: (shape) =>
-        selected && countriesByShape.get(shape as LandShape)?.includes(selected) ? [58, 76, 102] : [36, 48, 66],
+        // Only the selected country's own shape: San Marino's point lies inside Italy's
+        selected && countriesByShape.get(shape as LandShape)?.owner?.iso3 === selected.iso3 ? [58, 76, 102] : [36, 48, 66],
       updateTriggers: { getFillColor: selected?.iso3 },
       getLineColor: [70, 86, 110],
       lineWidthMinPixels: 0.5,
@@ -221,14 +283,18 @@ export default function App() {
       })
     }),
     new ScatterplotLayer<Country>({
-      id: 'countries',
-      data: countries,
+      id: 'tiny-countries',
+      data: tinyCountries,
+      visible: zoomedIn,
       pickable: true,
       getPosition: (d) => [d.lon, d.lat],
-      getRadius: 1,
       radiusUnits: 'pixels',
-      radiusMinPixels: 2.5,
-      getFillColor: (d) => (d.iso3 === selected?.iso3 ? [255, 255, 255] : [160, 180, 205, 160]),
+      getRadius: 5,
+      stroked: true,
+      lineWidthUnits: 'pixels',
+      getLineWidth: 1.5,
+      getLineColor: [200, 215, 235, 220],
+      getFillColor: (d) => (d.iso3 === selected?.iso3 ? [255, 255, 255] : [58, 76, 102, 230]),
       updateTriggers: { getFillColor: selected?.iso3 },
     }),
   ]
@@ -244,6 +310,9 @@ export default function App() {
       <DeckGL
         views={VIEW}
         initialViewState={initialViewState}
+        onViewStateChange={({ viewState }) => {
+          setZoomedIn(viewState.zoom >= RING_ZOOM)
+        }}
         controller={true}
         layers={layers}
         pickingRadius={12}
@@ -285,6 +354,8 @@ export default function App() {
 
       {error && <div className="status error">Could not load data: {error}</div>}
       {!error && flows.length === 0 && <div className="status">Loading flows…</div>}
+
+      <AboutDialog />
 
       <footer className="credits">
         Data: Abel &amp; Cohen (2025) bilateral migration flows v8, CC BY 4.0 · Map: Natural Earth
