@@ -10,7 +10,7 @@ create table flows(
     orig char(3) not null references countries(iso3),
     dest char(3) not null references countries(iso3),
     method varchar(255) not null check (method in ('sd_drop_neg', 'sd_rev_neg', 'mig_rate', 'da_min_open', 'da_min_closed', 'da_pb_closed')),
-    value int not null,
+    value double precision not null,
     source_version varchar(255) not null,
     primary key (source_version, year0, orig, dest, method)
 );
