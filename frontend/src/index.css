@@ -23,9 +23,18 @@ body,
   margin: 0;
   height: 100%;
   overflow: hidden;
-  /* Gestures belong to the globe and the ring, not the browser */
-  touch-action: none;
   overscroll-behavior: none;
+}
+
+/* Phones: the page scrolls (globe first, country details below). The globe canvas and the
+   time ring block scrolling themselves, so dragging there still rotates or scrubs. */
+@media (max-width: 600px) {
+  html,
+  body,
+  #root {
+    height: auto;
+    overflow: visible;
+  }
 }
 
 button {

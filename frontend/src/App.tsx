@@ -225,9 +225,11 @@ export default function App() {
   }, [countries, flows, selected])
 
   const radius = ringRadius(width, height)
+  // On phones the globe canvas is a square around the ring, so the strips above and below it can scroll the page
+  const canvasHeight = IS_MOBILE ? Math.min(width, height) : height
   const hasSize = width > 0 && height > 0
   const initialViewState = useMemo(
-    () => ({ longitude: 15, latitude: 20, zoom: fittingZoom(radius - 10, height, 20), minZoom: -1, maxZoom: 6 }),
+    () => ({ longitude: 15, latitude: 20, zoom: fittingZoom(radius - 10, canvasHeight, 20), minZoom: -1, maxZoom: 6 }),
     // Only once the window has a size: later resizes shouldn't reset the user's rotation
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [hasSize],
@@ -308,34 +310,45 @@ export default function App() {
 
   return (
     <div className="app">
-      <DeckGL
-        views={VIEW}
-        initialViewState={initialViewState}
-        onViewStateChange={({ viewState }) => {
-          setZoomedIn(viewState.zoom >= RING_ZOOM)
-        }}
-        controller={true}
-        layers={layers}
-        pickingRadius={12}
-        onClick={handleClick}
-        getCursor={({ isHovering, isDragging }) => (isDragging ? 'grabbing' : isHovering ? 'pointer' : 'grab')}
-      />
-
-      <TimeRing
-        year={year}
-        centerX={width / 2}
-        centerY={height / 2}
-        radius={radius}
-        onScrubStart={onScrubStart}
-        onScrub={onScrub}
-        onScrubEnd={onScrubEnd}
-      />
-
-      <div className="year">
-        <div className="year-value">{Math.floor(year)}</div>
-        <div className="year-period">
-          estimates for {period}–{period + 5}
+      {/* One screen high; on phones the country panel follows below it and the page scrolls */}
+      <div className="stage">
+        <div className="globe">
+          <DeckGL
+            views={VIEW}
+            initialViewState={initialViewState}
+            onViewStateChange={({ viewState }) => {
+              setZoomedIn(viewState.zoom >= RING_ZOOM)
+            }}
+            controller={true}
+            layers={layers}
+            pickingRadius={12}
+            onClick={handleClick}
+            getCursor={({ isHovering, isDragging }) => (isDragging ? 'grabbing' : isHovering ? 'pointer' : 'grab')}
+          />
         </div>
+
+        <TimeRing
+          year={year}
+          centerX={width / 2}
+          centerY={height / 2}
+          radius={radius}
+          onScrubStart={onScrubStart}
+          onScrub={onScrub}
+          onScrubEnd={onScrubEnd}
+        />
+
+        <div className="year">
+          <div className="year-value">{Math.floor(year)}</div>
+          <div className="year-period">
+            estimates for {period}–{period + 5}
+          </div>
+        </div>
+
+        {error && <div className="status error">Could not load data: {error}</div>}
+        {!error && flows.length === 0 && <div className="status">Loading flows…</div>}
+
+        {/* Also holds the data credits (CC BY 4.0) */}
+        <AboutDialog />
       </div>
 
       <div className="controls">
@@ -352,12 +365,6 @@ export default function App() {
       {selected && (
         <CountryPanel country={selected} period={period} flows={flows} names={names} onClose={() => setSelected(null)} />
       )}
-
-      {error && <div className="status error">Could not load data: {error}</div>}
-      {!error && flows.length === 0 && <div className="status">Loading flows…</div>}
-
-      {/* Also holds the data credits (CC BY 4.0) */}
-      <AboutDialog />
     </div>
   )
 }

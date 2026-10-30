@@ -4,6 +4,17 @@
   height: 100%;
 }
 
+.stage {
+  position: absolute;
+  inset: 0;
+  touch-action: none; /* gestures belong to the globe, not the browser */
+}
+
+.globe {
+  position: absolute;
+  inset: 0;
+}
+
 /* ---------- Time ring ---------- */
 
 .time-ring {
@@ -32,6 +43,7 @@
   stroke-width: 44; /* thumb-sized */
   pointer-events: stroke;
   cursor: grab;
+  touch-action: none; /* scrubbing must not scroll the page */
 }
 
 .ring-hit:active {
@@ -259,23 +271,41 @@
   color: var(--text);
 }
 
-/* Phones: details centered above the controls, same width; book button top right */
+/* Phones: the page scrolls. Globe fills the first screen, country details follow below it,
+   the speed bar stays fixed at the bottom on top of both. Book button top right. */
 @media (max-width: 600px) {
   .app {
+    height: auto;
     --bar-width: 252px; /* 5 buttons × 44px + gaps + padding + border */
     --bar-height: 42px; /* 34px buttons + padding + border */
     /* Close to the edge; on iPhones just above the home indicator line, not the whole safe area */
     --bar-bottom: max(8px, calc(env(safe-area-inset-bottom) - 14px));
   }
 
+  .stage {
+    position: relative;
+    height: 100vh;
+    height: 100dvh; /* visible height, without the browser's address bar */
+    touch-action: pan-y; /* swipe up/down here scrolls the page; the globe canvas blocks it itself */
+  }
+
+  /* Square around the ring (must match canvasHeight in App.tsx) */
+  .globe {
+    inset: auto 0;
+    top: 50%;
+    height: min(100vw, 100dvh);
+    transform: translateY(-50%);
+  }
+
   .panel {
+    position: relative;
     top: auto;
     right: auto;
-    left: 50%;
-    transform: translateX(-50%);
-    bottom: calc(var(--bar-bottom) + var(--bar-height) + 8px); /* always just above the bar */
     width: var(--bar-width);
-    max-height: 30%;
+    max-height: none;
+    overflow: visible;
+    /* Room at the end so the fixed bar never covers the last rows */
+    margin: 12px auto calc(var(--bar-bottom) + var(--bar-height) + 16px);
     padding: 10px 12px;
   }
 
@@ -309,6 +339,8 @@
 
   /* Same width, less height, close to the bottom edge */
   .controls {
+    position: fixed;
+    z-index: 1;
     bottom: var(--bar-bottom);
     width: var(--bar-width);
     height: var(--bar-height);
