@@ -263,6 +263,9 @@
 @media (max-width: 600px) {
   .app {
     --bar-width: 252px; /* 5 buttons × 44px + gaps + padding + border */
+    --bar-height: 42px; /* 34px buttons + padding + border */
+    /* Close to the edge; on iPhones just above the home indicator line, not the whole safe area */
+    --bar-bottom: max(8px, calc(env(safe-area-inset-bottom) - 14px));
   }
 
   .panel {
@@ -270,7 +273,7 @@
     right: auto;
     left: 50%;
     transform: translateX(-50%);
-    bottom: 60px;
+    bottom: calc(var(--bar-bottom) + var(--bar-height) + 8px); /* always just above the bar */
     width: var(--bar-width);
     max-height: 30%;
     padding: 10px 12px;
@@ -306,8 +309,9 @@
 
   /* Same width, less height, close to the bottom edge */
   .controls {
-    bottom: max(8px, env(safe-area-inset-bottom));
+    bottom: var(--bar-bottom);
     width: var(--bar-width);
+    height: var(--bar-height);
     justify-content: space-between;
     padding: 3px;
   }
