@@ -45,7 +45,7 @@ export function CountryPanel({ country, period, flows, names, onClose }: Props) 
     .map((f) => ({ iso3: f.orig, value: f.value }))
 
   return (
-    <aside className="panel" id="country-panel">
+    <aside className="panel">
       <header>
         <div>
           <h2>{country.name}</h2>

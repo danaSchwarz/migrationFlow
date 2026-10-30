@@ -12,7 +12,6 @@ import worldTopology from 'world-atlas/countries-110m.json'
 import { fetchCountries, fetchFlows, type Country, type Flow } from './api'
 import { AboutDialog } from './AboutDialog'
 import { CountryPanel } from './CountryPanel'
-import { ScrollToDetails } from './ScrollToDetails'
 import { unwrapLongitudes, type LonLat } from './geo'
 import { buildParticles, CYCLE_MS, TRAIL_MS, type Particle } from './streams'
 import { loopFade, PERIODS, periodOf, periodWeights, START_YEAR, wrapYear } from './time'
@@ -369,8 +368,6 @@ export default function App() {
       {selected && (
         <CountryPanel country={selected} period={period} flows={flows} names={names} onClose={() => setSelected(null)} />
       )}
-      {/* Rendered after the panel, so the panel exists when it starts watching */}
-      {selected && IS_MOBILE && <ScrollToDetails />}
     </div>
   )
 }
